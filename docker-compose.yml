@@ -1,0 +1,50 @@
+version: '3.9'
+
+services:
+
+  # ── Node.js Statistics API ────────────────────────────────────────────────
+  # Must start first; Go API depends on it being healthy.
+  node-api:
+    build:
+      context: ./node-api
+      dockerfile: Dockerfile
+    container_name: interseguro-node-api
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+    restart: unless-stopped
+    healthcheck:
+      test: >
+        node -e
+        "require('http').get('http://localhost:3001/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  # ── Go QR Decomposition API ───────────────────────────────────────────────
+  go-api:
+    build:
+      context: ./go-api
+      dockerfile: Dockerfile
+    container_name: interseguro-go-api
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      # Internal Docker network URL for the statistics service
+      - NODE_API_URL=http://node-api:3001
+      # Optional JWT protection — set to "true" to enable
+      - JWT_ENABLED=false
+      - JWT_SECRET=interseguro-secret-2024
+    depends_on:
+      node-api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 20s

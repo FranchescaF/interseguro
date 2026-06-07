@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interseguro – QR Matrix Descomposición</title>
+  <style>
+    :root {
+      --blue:   #0057B8;
+      --lblue:  #0099E6;
+      --bg:     #f0f4f8;
+      --white:  #ffffff;
+      --border: #d1dde8;
+      --text:   #1a2a3a;
+      --muted:  #6b7f96;
+      --green:  #17a34a;
+      --red:    #dc2626;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--blue); color: #fff;
+      padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem;
+    }
+    header .logo { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+    header .logo span { color: var(--lblue); }
+    header p { font-size: 0.85rem; opacity: 0.8; margin-left: auto; }
+
+    /* ── Layout ── */
+    main { max-width: 960px; margin: 2rem auto; padding: 0 1.5rem; display: grid; gap: 1.5rem; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.5rem;
+    }
+    .card h2 { font-size: 1rem; color: var(--blue); margin-bottom: 1rem; font-weight: 600; }
+
+    /* ── Input area ── */
+    textarea {
+      width: 100%; font-family: 'Courier New', monospace; font-size: 0.85rem;
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 0.75rem; resize: vertical; min-height: 120px;
+      background: #f7fafc; color: var(--text);
+    }
+    textarea:focus { outline: 2px solid var(--lblue); }
+
+    .hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.5rem; }
+
+    /* ── Button ── */
+    button {
+      background: var(--blue); color: #fff; border: none; border-radius: 6px;
+      padding: 0.65rem 1.5rem; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; transition: background 0.2s;
+    }
+    button:hover { background: var(--lblue); }
+    button:disabled { background: var(--muted); cursor: not-allowed; }
+    .btn-row { display: flex; gap: 0.75rem; margin-top: 1rem; align-items: center; }
+
+    /* ── Status ── */
+    #status { font-size: 0.85rem; padding: 0.5rem 1rem; border-radius: 6px; display: none; }
+    #status.ok  { background: #dcfce7; color: var(--green); display: block; }
+    #status.err { background: #fee2e2; color: var(--red);   display: block; }
+
+    /* ── Result sections ── */
+    .results { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 600px) { .results { grid-template-columns: 1fr; } }
+
+    /* ── Matrix table ── */
+    .matrix-wrap { overflow-x: auto; margin-top: 0.5rem; }
+    table { border-collapse: collapse; font-size: 0.78rem; font-family: monospace; width: 100%; }
+    td {
+      border: 1px solid var(--border); padding: 0.35rem 0.6rem;
+      text-align: right; white-space: nowrap;
+    }
+    thead td { background: var(--blue); color: #fff; text-align: center; font-weight: 600; }
+
+    /* ── Stats grid ── */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem; }
+    .stat-box {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.75rem;
+    }
+    .stat-box .label { font-size: 0.75rem; color: var(--muted); }
+    .stat-box .value { font-size: 1.1rem; font-weight: 700; color: var(--blue); margin-top: 0.2rem; }
+
+    /* ── Diagonal badges ── */
+    .diag-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .badge {
+      font-size: 0.78rem; padding: 0.3rem 0.75rem; border-radius: 20px; font-weight: 600;
+    }
+    .badge.yes { background: #dcfce7; color: var(--green); }
+    .badge.no  { background: #fee2e2; color: var(--red);   }
+
+    footer { text-align: center; font-size: 0.78rem; color: var(--muted); padding: 2rem 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">□ <span>Interseguro</span></div>
+  </div>
+  <p>División TI · Coding Challenge 2026</p>
+</header>
+
+<main>
+
+  <!-- Input card -->
+  <div class="card">
+    <h2>📐 Ingresa la Matriz</h2>
+    <textarea id="matrixInput" rows="6">[[1, 2],
+[3, 4],
+[5, 6]]</textarea>
+    <p class="hint">Formato JSON: array de arrays de números. La matriz debe tener filas ≥ columnas.</p>
+    <div class="btn-row">
+      <button id="computeBtn" onclick="compute()">Calcular QR + Estadísticas</button>
+      <button onclick="loadDemo()" style="background:#f0f4f8;color:var(--blue);border:1px solid var(--border);">Demo 3×3</button>
+      <span id="status"></span>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsSection" style="display:none">
+
+    <div class="results">
+      <!-- Q Matrix -->
+      <div class="card">
+        <h2>🔷 Matriz Q  <small style="color:var(--muted);font-weight:400">(columnas ortonormales)</small></h2>
+        <div class="matrix-wrap" id="qMatrix"></div>
+      </div>
+      <!-- R Matrix -->
+      <div class="card">
+        <h2>🔶 Matriz R  <small style="color:var(--muted);font-weight:400">(triangular superior)</small></h2>
+        <div class="matrix-wrap" id="rMatrix"></div>
+      </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="card">
+      <h2>📊 Estadísticas (sobre Q y R combinadas)</h2>
+      <div class="stats-grid" id="statsGrid"></div>
+
+      <h2 style="margin-top:1.25rem">🔲 ¿Matriz diagonal?</h2>
+      <div class="diag-row" id="diagRow"></div>
+    </div>
+
+  </div>
+
+</main>
+
+<footer>Interseguro · División TI · Junio 2026</footer>
+
+<script>
+  const GO_API = 'http://localhost:3000';
+
+  function setStatus(msg, type) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = type;
+  }
+
+  function buildTable(matrix) {
+    if (!matrix || !matrix.length) return '<em>vacía</em>';
+    let html = '<table><thead><tr>';
+    for (let j = 0; j < matrix[0].length; j++) {
+      html += `<td>col ${j + 1}</td>`;
+    }
+    html += '</tr></thead><tbody>';
+    for (const row of matrix) {
+      html += '<tr>' + row.map(v => `<td>${v.toFixed(6)}</td>`).join('') + '</tr>';
+    }
+    return html + '</tbody></table>';
+  }
+
+  async function compute() {
+    const btn = document.getElementById('computeBtn');
+    btn.disabled = true;
+    setStatus('Calculando…', '');
+    document.getElementById('resultsSection').style.display = 'none';
+
+    let matrix;
+    try {
+      matrix = JSON.parse(document.getElementById('matrixInput').value);
+    } catch {
+      setStatus('❌ JSON inválido. Revisa el formato.', 'err');
+      btn.disabled = false;
+      return;
+    }
+
+    try {
+      const res = await fetch(`${GO_API}/api/v1/matrix/qr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matrix }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        setStatus('❌ ' + data.message, 'err');
+        btn.disabled = false;
+        return;
+      }
+
+      // Render Q and R
+      document.getElementById('qMatrix').innerHTML = buildTable(data.qr.Q);
+      document.getElementById('rMatrix').innerHTML = buildTable(data.qr.R);
+
+      // Render stats
+      const agg = data.statistics?.data?.aggregate ?? {};
+      document.getElementById('statsGrid').innerHTML = [
+        ['Máximo',       agg.max],
+        ['Mínimo',       agg.min],
+        ['Promedio',     agg.average],
+        ['Suma total',   agg.totalSum],
+        ['Nº elementos', agg.elementCount],
+      ].map(([label, val]) => `
+        <div class="stat-box">
+          <div class="label">${label}</div>
+          <div class="value">${val !== undefined ? val : '—'}</div>
+        </div>`).join('');
+
+      // Render diagonal analysis
+      const diag = data.statistics?.data?.diagonalAnalysis ?? {};
+      document.getElementById('diagRow').innerHTML = Object.entries(diag).map(([key, v]) => `
+        <span class="badge ${v.isDiagonal ? 'yes' : 'no'}">
+          ${key}: ${v.isDiagonal ? '✓ Diagonal' : '✗ No diagonal'} — ${v.reason}
+        </span>`).join('');
+
+      document.getElementById('resultsSection').style.display = 'block';
+      setStatus('✓ Listo', 'ok');
+    } catch (err) {
+      setStatus('❌ Error de red: ' + err.message, 'err');
+    }
+    btn.disabled = false;
+  }
+
+  function loadDemo() {
+    document.getElementById('matrixInput').value =
+      JSON.stringify([[4,3,1],[2,5,0],[7,1,3]], null, 2);
+  }
+</script>
+</body>
+</html>
