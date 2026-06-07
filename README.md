@@ -1,4 +1,4 @@
-# Interseguro – Coding Challenge · División TI · Junio 2024
+# Interseguro – Coding Challenge · División TI · Junio 2026
 
 ## Arquitectura de la solución
 
